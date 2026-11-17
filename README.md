@@ -7,11 +7,13 @@
 
 ---
 
-> **STATUS: PIPELINE + SIMULATION SURFACE WORKING · ADMIN CONSOLE NOT YET BUILT.**
+> **STATUS: COMPLETE AND RUNNING — all five PS-28 objectives are demonstrable in the UI.**
 >
-> **Working and verified today.** `npm test` runs **179 tests, all passing**; `npm run typecheck` is
+> **Working and verified today.** `npm test` runs **192 tests, all passing**; `npm run typecheck` is
 > clean across all three TypeScript projects; `npm audit --omit=dev` reports **0 vulnerabilities**;
-> the attestation reports **ATTESTED**.
+> the attestation reports **ATTESTED**; and `npm run verify:console` drives the live console as
+> each of the five seeded roles and passes **36/36**, including three attempts to forge, expire or
+> privilege-escalate a session.
 >
 > | Verified by running it | Result |
 > |---|---|
@@ -26,11 +28,17 @@
 > | `GET /t/<token>` on the live app | 200, and the delivered HTML contains **0** `<input>`, **0** `<form>` and **0** `type=password` |
 > | `POST /t/<token>/intent` with `{"password":"hunter2",…}` | **400 — rejected outright.** A search of all 2,699 rows across 7 tables finds `hunter2` nowhere |
 > | Response headers | Nonce-based CSP with `form-action 'none'`, `Referrer-Policy: no-referrer`, `X-Frame-Options: DENY` |
+> | Console, as Security | Studio blocks the COVID-bonus lure citing West Midlands Trains — and **Security cannot override its own block** |
+> | Console, as People/HR | Holds the override (120-character justification + Ed25519 signature), but is refused governance and template authoring |
+> | Console, as Analyst | Reads aggregates; refused governance and authoring, with a page explaining which separation is doing the work |
+> | Session forgery | A tampered cookie, an expired cookie, and a cookie self-claiming `OWNER` are all rejected — the role is re-read from the database each request |
+> | Cross-origin journey | Console (`:4000`) webmail → Report link on the simulation origin (`:4001`) → reporter thanked, and never named |
 >
-> **Not built yet:** the admin console (template studio, campaign wizard and preflight panel,
-> dual-signature authorization UI, participant webmail, SOC triage, dashboards) and the
-> awareness-report PDF. Abuse case A20 (RBAC) lands with it. See
-> [docs/06-WORKPLAN-48H.md](docs/06-WORKPLAN-48H.md).
+> **Deliberately not built** (see [docs/00-MASTER-PLAN.md](docs/00-MASTER-PLAN.md) §5): the campaign
+> creation wizard (campaigns are seeded by the CLI; authorization, preflight and kill-switch are
+> fully live), the awareness-report PDF export, SSO/SCIM, true multi-tenancy, live DNS domain
+> verification, real SMS/voice gateways, and the AI Lure Composer — whose interface and safety
+> constraints are written down in `packages/ai` without a provider behind them.
 >
 > Nothing in this README claims a capability that does not exist. Until `apps/sim` existed, the
 > attestation reported INCOMPLETE rather than passing on a check it could not run — that is

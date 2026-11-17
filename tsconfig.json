@@ -38,6 +38,9 @@
       ],
       "@chetna/content": [
         "content/index.ts"
+      ],
+      "@console/rbac": [
+        "apps/console/lib/rbac.ts"
       ]
     }
   },

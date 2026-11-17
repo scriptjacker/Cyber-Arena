@@ -28,7 +28,8 @@
     "build:apps": "npm run build --workspace @chetna/console && npm run build --workspace @chetna/sim",
     "typecheck:core": "node ./node_modules/typescript/bin/tsc --noEmit",
     "typecheck:console": "node ./node_modules/typescript/bin/tsc --noEmit -p apps/console/tsconfig.json",
-    "typecheck:sim": "node ./node_modules/typescript/bin/tsc --noEmit -p apps/sim/tsconfig.json"
+    "typecheck:sim": "node ./node_modules/typescript/bin/tsc --noEmit -p apps/sim/tsconfig.json",
+    "verify:console": "node --env-file-if-exists=.env ./scripts/verify-console.mjs"
   },
   "devDependencies": {
     "@types/node": "22.10.2",

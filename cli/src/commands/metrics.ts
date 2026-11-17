@@ -1,6 +1,6 @@
-import { ActorClass, EventType, type CohortRow } from '@chetna/core';
-import { eventsRepo, prisma, runtimeConfig } from '@chetna/db';
-import { computeMetrics, formatDuration, holdoutEffect, isFailure } from '@chetna/scoring';
+
+import { analyticsRepo, eventsRepo, prisma, runtimeConfig } from '@chetna/db';
+import { computeMetrics, formatDuration, holdoutEffect } from '@chetna/scoring';
 import { guardCohorts } from '@chetna/privacy';
 import { bold, dim, fail, heading, info, kv, ok, pct, warn } from '../lib/out';
 
@@ -63,7 +63,7 @@ export async function metrics(campaignId?: string): Promise<void> {
   const k = runtimeConfig().kAnon;
   heading(`Cohort breakdown by department (k-anonymity, k=${k})`);
 
-  const rows = await cohortRows(campaign.id);
+  const rows = await analyticsRepo.cohortRows(campaign.id);
   const guarded = guardCohorts(rows, k);
 
   if (!guarded.ok) {
@@ -92,63 +92,4 @@ export async function metrics(campaignId?: string): Promise<void> {
       'Hidden cohorts are never named, because naming a withheld group can identify it. There is no endpoint in this platform that returns a named individual to a manager.',
     );
   }
-}
-
-/** Per-department aggregates for the k-anonymity guard. */
-async function cohortRows(campaignId: string): Promise<CohortRow[]> {
-  const assignments = await prisma.assignment.findMany({
-    where: { campaignId },
-    include: {
-      participant: { select: { department: true } },
-      events: { select: { type: true, actorClass: true } },
-      template: { select: { difficulty: true } },
-    },
-  });
-
-  const byDept = new Map<string, CohortRow>();
-  for (const a of assignments) {
-    const dept = a.participant.department;
-    const row =
-      byDept.get(dept) ??
-      ({
-        key: dept.toLowerCase().replace(/\s+/g, '-'),
-        label: dept,
-        cohortSize: 0,
-        delivered: 0,
-        failures: 0,
-        reports: 0,
-        machineFiltered: 0,
-      } satisfies CohortRow);
-
-    const types = new Set(a.events.map((e) => e.type));
-    row.cohortSize += 1;
-    if (a.state === 'SENT') row.delivered += 1;
-    if (
-      isFailure({
-        assignmentId: a.id,
-        arm: a.arm as 'TREATMENT' | 'HOLDOUT',
-        difficulty: a.template.difficulty as never,
-        delivered: true,
-        probableOpen: false,
-        machineFiltered: false,
-        clickUnconfirmed: types.has(EventType.CLICK_UNCONFIRMED),
-        clickConfirmed: types.has(EventType.CLICK_CONFIRMED),
-        submitIntent: types.has(EventType.SUBMIT_INTENT),
-        qrScan: types.has(EventType.QR_SCAN),
-        reported: false,
-        timeToReportMs: null,
-        trainingCompleted: false,
-      })
-    ) {
-      row.failures += 1;
-    }
-    if (types.has(EventType.REPORTED)) row.reports += 1;
-    row.machineFiltered += a.events.filter(
-      (e) => e.type === EventType.PROBABLE_OPEN && e.actorClass === ActorClass.MACHINE,
-    ).length;
-
-    byDept.set(dept, row);
-  }
-
-  return [...byDept.values()];
 }

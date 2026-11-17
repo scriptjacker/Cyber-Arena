@@ -19,6 +19,7 @@ export default defineConfig({
       '@chetna/privacy': pkg('privacy'),
       '@chetna/ai': pkg('ai'),
       '@chetna/db': pkg('db'),
+      '@console/rbac': fileURLToPath(new URL('./apps/console/lib/rbac.ts', import.meta.url)),
       '@chetna/content': fileURLToPath(new URL('./content/index.ts', import.meta.url)),
       '@chetna/mailsink': svc('mailsink'),
       '@chetna/worker': svc('worker'),
