@@ -179,7 +179,7 @@ writes its own receipt.
 
 ## Links
 
-- **GitHub repository:** `[PASTE AFTER PUSHING — see the push steps below]`
+- **GitHub repository:** https://github.com/scriptjacker/Cyber-Arena
 - **Google Drive (demo video, deck, sample report):** `[PASTE SHARE LINK]`
 - **Demo video:** `[PASTE LINK]` — 5 minutes, script in `docs/04-DEMO-SCRIPT.md`
 
@@ -216,7 +216,25 @@ no Docker, no network calls at runtime.
 
 ---
 
-## Pushing to GitHub
+## Licence — one decision outstanding
+
+The repository was created with an **MIT** `LICENSE` file, while `README.md`,
+`POLICY.md` and `package.json` all declare **AGPL-3.0**. Both are live on the
+public repo, so pick one:
+
+- **Keep MIT** — simplest, most permissive, and what the LICENSE file already
+  says. But MIT lets anyone take this platform, strip the seven gates and the
+  ethics screen, and ship it closed-source. For a tool whose entire argument is
+  that the safety controls cannot be removed, that is worth thinking about.
+- **Switch to AGPL-3.0** — matches what the documentation already claims, and
+  means a hosted fork has to publish its modifications. This is what POLICY.md
+  argues for.
+
+Either way it is a two-minute fix, and it should be resolved before judging.
+
+---
+
+## How it was pushed
 
 The two commits exist **only on this machine** — there is no remote, so nothing
 has been published yet. `gh` is not installed here, so create the repository in
