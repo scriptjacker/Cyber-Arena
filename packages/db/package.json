@@ -1,0 +1,18 @@
+{
+  "name": "@chetna/db",
+  "version": "1.0.0-demo",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@chetna/audit": "*",
+    "@chetna/core": "*",
+    "@chetna/policy": "*",
+    "@chetna/scoring": "*",
+    "@prisma/client": "6.1.0"
+  }
+}

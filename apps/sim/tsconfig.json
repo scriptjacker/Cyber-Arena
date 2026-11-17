@@ -1,0 +1,64 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "preserve",
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "allowJs": true,
+    "incremental": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": [
+        "./*"
+      ],
+      "@chetna/core": [
+        "../../packages/core/src/index.ts"
+      ],
+      "@chetna/db": [
+        "../../packages/db/src/index.ts"
+      ],
+      "@chetna/policy": [
+        "../../packages/policy/src/index.ts"
+      ],
+      "@chetna/audit": [
+        "../../packages/audit/src/index.ts"
+      ],
+      "@chetna/safety-lint": [
+        "../../packages/safety-lint/src/index.ts"
+      ],
+      "@chetna/ethics": [
+        "../../packages/ethics/src/index.ts"
+      ],
+      "@chetna/phishscale": [
+        "../../packages/phishscale/src/index.ts"
+      ],
+      "@chetna/scoring": [
+        "../../packages/scoring/src/index.ts"
+      ],
+      "@chetna/privacy": [
+        "../../packages/privacy/src/index.ts"
+      ],
+      "@chetna/content": [
+        "../../content/index.ts"
+      ]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}

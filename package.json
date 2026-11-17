@@ -1,0 +1,47 @@
+{
+  "name": "chetna",
+  "version": "1.0.0-demo",
+  "private": true,
+  "type": "module",
+  "description": "Authorized phishing simulation & security awareness platform — measure the sensor, not the victim.",
+  "license": "AGPL-3.0-only",
+  "engines": {
+    "node": ">=22"
+  },
+  "comment:scripts": "Scripts invoke node entry points directly rather than node_modules/.bin shims, because the .cmd shims break on paths containing '&' (as this checkout's does). Direct invocation works in every path.",
+  "scripts": {
+    "typecheck": "npm run typecheck:core && npm run typecheck:console && npm run typecheck:sim",
+    "test": "node ./node_modules/vitest/vitest.mjs run",
+    "test:watch": "node ./node_modules/vitest/vitest.mjs",
+    "test:abuse": "node ./node_modules/vitest/vitest.mjs run tests/abuse",
+    "db:generate": "node ./node_modules/prisma/build/index.js generate --schema packages/db/prisma/schema.prisma",
+    "db:push": "node ./node_modules/prisma/build/index.js db push --schema packages/db/prisma/schema.prisma --skip-generate",
+    "db:studio": "node ./node_modules/prisma/build/index.js studio --schema packages/db/prisma/schema.prisma",
+    "chetna": "node --env-file-if-exists=.env --import tsx ./cli/src/index.ts",
+    "verify:safety": "node --env-file-if-exists=.env --import tsx ./cli/src/index.ts safety attest",
+    "seed": "node --env-file-if-exists=.env --import tsx ./cli/src/index.ts seed",
+    "demo": "node --env-file-if-exists=.env --import tsx ./cli/src/index.ts demo",
+    "mailsink": "node --env-file-if-exists=.env --import tsx ./services/mailsink/src/index.ts",
+    "worker": "node --env-file-if-exists=.env --import tsx ./services/worker/src/index.ts",
+    "dev:console": "npm run dev --workspace @chetna/console",
+    "dev:sim": "npm run dev --workspace @chetna/sim",
+    "build:apps": "npm run build --workspace @chetna/console && npm run build --workspace @chetna/sim",
+    "typecheck:core": "node ./node_modules/typescript/bin/tsc --noEmit",
+    "typecheck:console": "node ./node_modules/typescript/bin/tsc --noEmit -p apps/console/tsconfig.json",
+    "typecheck:sim": "node ./node_modules/typescript/bin/tsc --noEmit -p apps/sim/tsconfig.json"
+  },
+  "devDependencies": {
+    "@types/node": "22.10.2",
+    "prisma": "6.1.0",
+    "tsx": "4.19.2",
+    "typescript": "5.7.2",
+    "vitest": "2.1.8"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "services/*",
+    "cli",
+    "content"
+  ]
+}

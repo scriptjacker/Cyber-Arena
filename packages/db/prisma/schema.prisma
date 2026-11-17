@@ -1,0 +1,575 @@
+// Chetna data model.
+//
+// SQLite is the offline-demo datasource. Prisma does not support native enums,
+// scalar lists or the Json type on SQLite, so:
+//   * enum columns are TEXT, validated in app code against @chetna/core enums
+//   * list/object columns are TEXT holding canonical JSON, suffixed `...Json`
+// In Postgres mode these become native enums and jsonb — see
+// docs/01-ARCHITECTURE.md §12. The application layer is unaffected because all
+// reads and writes go through packages/db repositories.
+//
+// THREE SAFETY PROPERTIES OF THIS SCHEMA, stated for the record:
+//   1. No table has a column capable of holding a submitted credential or any
+//      user-entered value. Event.metaJson is validated by EventMetaSchema,
+//      which is an allowlist and is .strict().
+//   2. No identifier that appears in a URL is derived from personal data.
+//      Assignment.token is 128 random bits; Participant.pid is opaque.
+//   3. Telemetry stores no raw IP address and no full user agent — only an
+//      ipClass and a uaFamily, neither of which re-identifies a person.
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/client"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Tenancy & people
+// ---------------------------------------------------------------------------
+
+model Org {
+  id        String   @id
+  name      String
+  slug      String   @unique
+  /// JSON: { kAnon: number, cooldownDays: number, newJoinerGraceDays: number }
+  settingsJson String @default("{}")
+  createdAt DateTime @default(now())
+
+  staff          StaffUser[]
+  participants   Participant[]
+  domains        ApprovedDomain[]
+  suppressions   Suppression[]
+  templates      Template[]
+  campaigns      Campaign[]
+  rosterImports  RosterImport[]
+  retentionRules RetentionRule[]
+  purgeReceipts  PurgeReceipt[]
+  dsarRequests   DsarRequest[]
+  reportTriages  ReportTriage[]
+  seededThreats  SeededThreat[]
+  auditEntries   AuditEntry[]
+}
+
+model StaffUser {
+  id           String    @id
+  orgId        String
+  email        String
+  displayName  String
+  /// scrypt (N=16384,r=8,p=1) — no native build step, see docs/01 §1
+  passwordHash String
+  /// core.Role
+  role         String
+  totpSecret   String?
+  /// Ed25519 public key in PEM, used to verify this user's approval signatures
+  publicKeyPem String?
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+
+  org       Org        @relation(fields: [orgId], references: [id])
+  approvals Approval[]
+
+  @@unique([orgId, email])
+  @@index([orgId, role])
+}
+
+model Participant {
+  id               String    @id
+  orgId            String
+  /// Opaque public id. The ONLY participant identifier used outside the DB.
+  pid              String    @unique
+  /// PII, data class CONTACT, retention-governed, nulled on DSAR erasure.
+  email            String?
+  displayName      String?
+  department       String
+  roleArchetype    String
+  locale           String    @default("en-IN")
+  /// core.ConsentState
+  consentState     String    @default("NOTIFIED_PROGRAMME")
+  optedOutAt       DateTime?
+  excludedByHr     Boolean   @default(false)
+  joinedAt         DateTime?
+  /// Private to the participant. Managers never see this number.
+  resilienceRating Float     @default(1200)
+  lastSimulatedAt  DateTime?
+  erasedAt         DateTime?
+  createdAt        DateTime  @default(now())
+
+  org           Org            @relation(fields: [orgId], references: [id])
+  assignments   Assignment[]
+  progress      Progress[]
+  spacedItems   SpacedItem[]
+  reports       ReportTriage[]
+  dsarRequests  DsarRequest[]
+  rosterMembers RosterMember[]
+
+  @@index([orgId, department])
+  @@index([orgId, lastSimulatedAt])
+}
+
+model RosterImport {
+  id              String   @id
+  orgId           String
+  filename        String
+  rowCount        Int
+  rejectedCount   Int      @default(0)
+  /// Binds this exact roster to an approval signature (core.hashRoster)
+  rosterHash      String
+  importedById    String
+  /// The importer's written attestation that these people are in scope.
+  attestationNote String
+  createdAt       DateTime @default(now())
+
+  org       Org            @relation(fields: [orgId], references: [id])
+  campaigns Campaign[]
+  members   RosterMember[]
+}
+
+/// Which participants a specific roster import covers. Membership is what gate
+/// G2 checks, and the set is what `rosterHash` is computed over — so adding a
+/// person after approval changes the hash and trips G1_SCOPE_DRIFT.
+model RosterMember {
+  rosterImportId String
+  participantId  String
+
+  rosterImport RosterImport @relation(fields: [rosterImportId], references: [id])
+  participant  Participant  @relation(fields: [participantId], references: [id])
+
+  @@id([rosterImportId, participantId])
+  @@index([participantId])
+}
+
+// ---------------------------------------------------------------------------
+// Scope: what may be touched
+// ---------------------------------------------------------------------------
+
+model ApprovedDomain {
+  id           String    @id
+  orgId        String
+  domain       String
+  /// core.DomainKind
+  kind         String
+  verifyToken  String
+  /// null until ownership is proven (DNS TXT in live mode, stub offline)
+  verifiedAt   DateTime?
+  verifiedById String?
+  method       String?
+  createdAt    DateTime  @default(now())
+
+  org Org @relation(fields: [orgId], references: [id])
+
+  @@unique([orgId, domain, kind])
+}
+
+model Suppression {
+  id        String    @id
+  orgId     String
+  /// core.SuppressionScope
+  scope     String
+  value     String
+  reason    String
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+
+  org Org @relation(fields: [orgId], references: [id])
+
+  @@index([orgId, scope, value])
+}
+
+// ---------------------------------------------------------------------------
+// Templates
+// ---------------------------------------------------------------------------
+
+model Template {
+  id       String @id
+  orgId    String
+  name     String
+  /// core.Channel
+  channel  String
+  /// MITRE ATT&CK technique id (core.Scenario)
+  scenario String
+
+  subject     String
+  fromName    String
+  fromAddress String
+  html        String
+  text        String?
+  /// JSON array of { filename, contentType } — inert allowlisted types only
+  attachmentsJson String @default("[]")
+
+  /// Canonical hash of the content, frozen into the approved scope
+  contentHash String
+  /// Mandatory simulation watermark (safety-lint SL006)
+  watermarkId String
+
+  /// JSON: DetectedCue[]
+  cuesJson         String @default("[]")
+  cueCount         Int    @default(0)
+  premiseAlignment Int    @default(3)
+  /// core.Difficulty — derived by @chetna/phishscale, never hand-set
+  difficulty       String @default("MODERATE")
+
+  /// core.LintStatus
+  lintStatus       String @default("FAIL")
+  /// JSON: LintFinding[]
+  lintFindingsJson String @default("[]")
+
+  /// core.EthicsStatus
+  ethicsStatus       String @default("CLEAR")
+  /// JSON: EthicsFinding[]
+  ethicsFindingsJson String @default("[]")
+
+  aiGenerated Boolean  @default(false)
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  org         Org             @relation(fields: [orgId], references: [id])
+  override    EthicsOverride?
+  assignments Assignment[]
+
+  @@index([orgId, channel])
+}
+
+model EthicsOverride {
+  id              String   @id
+  templateId      String   @unique
+  /// JSON array of blocked theme ids being overridden
+  themesJson      String
+  /// Minimum 120 characters, enforced by EthicsOverrideInputSchema
+  justification   String
+  approvedByHrId  String
+  publicKeyPem    String
+  signatureB64    String
+  signedAt        DateTime @default(now())
+
+  template Template @relation(fields: [templateId], references: [id])
+}
+
+// ---------------------------------------------------------------------------
+// Campaigns & authorization
+// ---------------------------------------------------------------------------
+
+model Campaign {
+  id               String   @id
+  orgId            String
+  name             String
+  /// core.CampaignStatus
+  status           String   @default("DRAFT")
+  /// core.RunMode at creation; part of the signed scope (gate G7)
+  mode             String   @default("offline")
+  windowStart      DateTime
+  windowEnd        DateTime
+  timezone         String   @default("Asia/Kolkata")
+  senderDomain     String
+  landingDomain    String
+  /// JSON array of approved recipient domains
+  recipientDomainsJson String
+  /// JSON array of template ids, in scope order
+  templateIdsJson  String
+  rosterImportId   String
+  holdoutPct       Int      @default(20)
+  randomSeed       String
+  rateLimitPerHour Int      @default(500)
+  killSwitch       Boolean  @default(false)
+  createdById      String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  org          Org                 @relation(fields: [orgId], references: [id])
+  rosterImport RosterImport        @relation(fields: [rosterImportId], references: [id])
+  grant        AuthorizationGrant?
+  assignments  Assignment[]
+  reports      ReportTriage[]
+
+  @@index([orgId, status])
+}
+
+model AuthorizationGrant {
+  id               String    @id
+  campaignId       String    @unique
+  /// SHA-256 over the canonical CampaignScope. This is what approvers sign.
+  scopeHash        String
+  /// Frozen copy of the scope, for the authorization dossier
+  scopeSnapshotJson String
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  revokedReason    String?
+  createdAt        DateTime  @default(now())
+
+  campaign  Campaign   @relation(fields: [campaignId], references: [id])
+  approvals Approval[]
+}
+
+model Approval {
+  id            String   @id
+  grantId       String
+  approverId    String
+  /// core.Role at the time of signing
+  approverRole  String
+  /// core.ApproverSlot — SECURITY and PEOPLE must both be filled
+  approverSlot  String
+  publicKeyPem  String
+  signatureB64  String
+  note          String?
+  signedAt      DateTime @default(now())
+
+  grant    AuthorizationGrant @relation(fields: [grantId], references: [id])
+  approver StaffUser          @relation(fields: [approverId], references: [id])
+
+  /// One approval per person per grant — defeats self-approval twice over
+  @@unique([grantId, approverId])
+  @@unique([grantId, approverSlot])
+}
+
+// ---------------------------------------------------------------------------
+// Assignments & events
+// ---------------------------------------------------------------------------
+
+model Assignment {
+  id            String    @id
+  campaignId    String
+  participantId String
+  templateId    String
+  /// core.Arm — TREATMENT or HOLDOUT (randomised, stratified)
+  arm           String
+  stratum       String
+  /// 128-bit opaque token. The only thing that ever appears in a URL.
+  token         String    @unique
+  sendAt        DateTime
+  /// core.AssignmentState
+  state         String    @default("QUEUED")
+  claimedAt     DateTime?
+  sentAt        DateTime?
+  messageId     String?
+  /// Set when the policy engine refused the send
+  blockedReason String?
+  createdAt     DateTime  @default(now())
+
+  campaign    Campaign    @relation(fields: [campaignId], references: [id])
+  participant Participant @relation(fields: [participantId], references: [id])
+  template    Template    @relation(fields: [templateId], references: [id])
+  events      Event[]
+  messages    Message[]
+
+  @@index([state, sendAt])
+  @@index([campaignId, arm])
+  @@index([participantId])
+}
+
+model Event {
+  id           String   @id
+  assignmentId String
+  /// core.EventType
+  type         String
+  at           DateTime @default(now())
+  /// core.ActorClass — MACHINE events are excluded from human metrics
+  actorClass   String   @default("UNKNOWN")
+  machineScore Float    @default(0)
+  /// Family only, e.g. "scanner", "ios-mail". Never the full user agent.
+  uaFamily     String?
+  /// core.IpClass. Never the raw IP address.
+  ipClass      String?
+  /// JSON validated by EventMetaSchema (allowlist, .strict()). No user input.
+  metaJson     String   @default("{}")
+
+  assignment Assignment @relation(fields: [assignmentId], references: [id])
+
+  @@index([assignmentId, type])
+  @@index([type, at])
+}
+
+/// Captured by services/mailsink. The controlled test environment's mailbox.
+model Message {
+  id           String   @id
+  assignmentId String?
+  toAddress    String
+  fromAddress  String
+  subject      String
+  html         String
+  text         String?
+  /// JSON object of the headers we assert on (simulation headers, watermark)
+  headersJson  String   @default("{}")
+  receivedAt   DateTime @default(now())
+  readAt       DateTime?
+  reportedAt   DateTime?
+
+  assignment Assignment? @relation(fields: [assignmentId], references: [id])
+
+  @@index([toAddress, receivedAt])
+}
+
+// ---------------------------------------------------------------------------
+// Learning
+// ---------------------------------------------------------------------------
+
+model Module {
+  id          String @id
+  slug        String @unique
+  title       String
+  summary     String
+  /// JSON array of core.CueTag this module remediates
+  cueTagsJson String @default("[]")
+  /// JSON array of core.Channel
+  channelTagsJson String @default("[]")
+  minutes     Int    @default(1)
+  mdxPath     String
+
+  progress Progress[]
+}
+
+model Progress {
+  id            String    @id
+  participantId String
+  moduleId      String
+  startedAt     DateTime  @default(now())
+  completedAt   DateTime?
+  dwellMs       Int       @default(0)
+  drillScore    Float?
+
+  participant Participant @relation(fields: [participantId], references: [id])
+  module      Module      @relation(fields: [moduleId], references: [id])
+
+  @@unique([participantId, moduleId])
+}
+
+/// Leitner-box spaced repetition, scheduled by the worker.
+model SpacedItem {
+  id            String   @id
+  participantId String
+  /// core.CueTag
+  cueTag        String
+  box           Int      @default(1)
+  dueAt         DateTime
+  lastResult    String?
+
+  participant Participant @relation(fields: [participantId], references: [id])
+
+  @@unique([participantId, cueTag])
+  @@index([dueAt])
+}
+
+// ---------------------------------------------------------------------------
+// Reporting / SOC triage
+// ---------------------------------------------------------------------------
+
+model ReportTriage {
+  id             String   @id
+  orgId          String
+  reportedById   String
+  campaignId     String?
+  assignmentId   String?
+  seededThreatId String?
+  /// core.Verdict
+  verdict        String   @default("UNREVIEWED")
+  clusterKey     String
+  firstReportAt  DateTime @default(now())
+  timeToReportMs Int?
+  analystId      String?
+  reviewedAt     DateTime?
+
+  org          Org           @relation(fields: [orgId], references: [id])
+  reportedBy   Participant   @relation(fields: [reportedById], references: [id])
+  campaign     Campaign?     @relation(fields: [campaignId], references: [id])
+  seededThreat SeededThreat? @relation(fields: [seededThreatId], references: [id])
+
+  @@index([orgId, clusterKey])
+  @@index([orgId, verdict])
+}
+
+/// Non-simulation "real" phishing seeded into the test environment, so the
+/// triage console demonstrates crowd-sourced detection, not just simulations.
+model SeededThreat {
+  id        String   @id
+  orgId     String
+  label     String
+  subject   String
+  html      String
+  createdAt DateTime @default(now())
+
+  org     Org            @relation(fields: [orgId], references: [id])
+  reports ReportTriage[]
+}
+
+// ---------------------------------------------------------------------------
+// Governance
+// ---------------------------------------------------------------------------
+
+/// Append-only, hash-chained. There is no update or delete path in code.
+model AuditEntry {
+  seq         Int      @id @default(autoincrement())
+  orgId       String
+  at          DateTime @default(now())
+  actorId     String?
+  actorRole   String?
+  action      String
+  reasonCode  String?
+  payloadHash String
+  payloadJson String
+  prevHash    String
+  hash        String   @unique
+
+  org Org @relation(fields: [orgId], references: [id])
+
+  @@index([orgId, action])
+  @@index([orgId, at])
+}
+
+model RetentionRule {
+  id         String @id
+  orgId      String
+  /// core.DataClass
+  dataClass  String
+  retainDays Int
+
+  org Org @relation(fields: [orgId], references: [id])
+
+  @@unique([orgId, dataClass])
+}
+
+/// Deletion is evidence. Every purge writes a receipt AND an audit entry.
+model PurgeReceipt {
+  id          String   @id
+  orgId       String
+  dataClass   String
+  cutoffAt    DateTime
+  rowsDeleted Int
+  dryRun      Boolean  @default(false)
+  runAt       DateTime @default(now())
+  auditSeq    Int?
+
+  org Org @relation(fields: [orgId], references: [id])
+}
+
+model DsarRequest {
+  id            String    @id
+  orgId         String
+  participantId String
+  /// core.DsarKind
+  kind          String
+  status        String    @default("PENDING")
+  requestedAt   DateTime  @default(now())
+  fulfilledAt   DateTime?
+  exportPath    String?
+
+  org         Org         @relation(fields: [orgId], references: [id])
+  participant Participant @relation(fields: [participantId], references: [id])
+}
+
+/// The signed output of `pnpm verify:safety`, rendered at /attest.
+model SafetyAttestation {
+  id            String   @id
+  createdAt     DateTime @default(now())
+  templatesRun  Int
+  rulesRun      Int
+  failures      Int
+  canaryPassed  Boolean
+  schemaHash    String
+  /// JSON: the full attestation document
+  documentJson  String
+  signatureB64  String
+  publicKeyPem  String
+}

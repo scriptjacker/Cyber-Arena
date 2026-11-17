@@ -1,0 +1,20 @@
+{
+  "name": "@chetna/cli",
+  "version": "1.0.0-demo",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "dependencies": {
+    "@chetna/core": "*",
+    "@chetna/audit": "*",
+    "@chetna/db": "*",
+    "@chetna/safety-lint": "*",
+    "@chetna/ethics": "*",
+    "@chetna/phishscale": "*",
+    "@chetna/privacy": "*",
+    "@chetna/mailsink": "*",
+    "@chetna/worker": "*",
+    "@chetna/scoring": "*",
+    "@chetna/content": "*"
+  }
+}

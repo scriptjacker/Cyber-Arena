@@ -1,0 +1,33 @@
+node_modules/
+.pnpm-store/
+dist/
+build/
+.next/
+out/
+coverage/
+*.tsbuildinfo
+
+# local database + generated prisma client
+*.db
+*.db-journal
+packages/db/prisma/*.db*
+packages/db/generated/
+
+# secrets & keys
+.env
+.env.local
+.env.*.local
+keys/
+*.pem
+
+# generated artefacts
+artefacts/
+playwright-report/
+test-results/
+
+# os / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json

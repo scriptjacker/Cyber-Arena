@@ -1,0 +1,14 @@
+{
+  "name": "@chetna/content",
+  "version": "1.0.0-demo",
+  "private": true,
+  "type": "module",
+  "main": "./index.ts",
+  "types": "./index.ts",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@chetna/core": "*"
+  }
+}

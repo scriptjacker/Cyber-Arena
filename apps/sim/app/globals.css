@@ -1,0 +1,27 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  background: #0b0e14;
+  color: #e6e8ee;
+}
+
+/* Cue highlight in the teachable moment. */
+.chetna-cue {
+  background: rgba(245, 158, 11, 0.22);
+  border-bottom: 2px solid #f59e0b;
+  color: inherit;
+  padding: 0 1px;
+  border-radius: 2px;
+  cursor: help;
+}
+.chetna-cue:hover,
+.chetna-cue:focus {
+  background: rgba(245, 158, 11, 0.4);
+  outline: none;
+}

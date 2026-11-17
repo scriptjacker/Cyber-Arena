@@ -1,0 +1,15 @@
+{
+  "name": "@chetna/phishscale",
+  "version": "1.0.0-demo",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@chetna/core": "*",
+    "node-html-parser": "6.1.13"
+  }
+}

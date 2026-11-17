@@ -1,0 +1,32 @@
+{
+  "name": "@chetna/sim",
+  "version": "1.0.0-demo",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 4001",
+    "build": "next build",
+    "start": "next start -p 4001"
+  },
+  "dependencies": {
+    "next": "16.4.6",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "@chetna/core": "*",
+    "@chetna/db": "*",
+    "@chetna/policy": "*",
+    "@chetna/audit": "*",
+    "@chetna/safety-lint": "*",
+    "@chetna/ethics": "*",
+    "@chetna/phishscale": "*",
+    "@chetna/scoring": "*",
+    "@chetna/privacy": "*",
+    "@chetna/content": "*"
+  },
+  "devDependencies": {
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "autoprefixer": "10.4.20",
+    "postcss": "8.4.49",
+    "tailwindcss": "3.4.17"
+  }
+}

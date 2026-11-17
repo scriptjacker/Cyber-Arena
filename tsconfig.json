@@ -1,0 +1,58 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@chetna/core": [
+        "packages/core/src/index.ts"
+      ],
+      "@chetna/core/*": [
+        "packages/core/src/*"
+      ],
+      "@chetna/audit": [
+        "packages/audit/src/index.ts"
+      ],
+      "@chetna/policy": [
+        "packages/policy/src/index.ts"
+      ],
+      "@chetna/safety-lint": [
+        "packages/safety-lint/src/index.ts"
+      ],
+      "@chetna/ethics": [
+        "packages/ethics/src/index.ts"
+      ],
+      "@chetna/phishscale": [
+        "packages/phishscale/src/index.ts"
+      ],
+      "@chetna/scoring": [
+        "packages/scoring/src/index.ts"
+      ],
+      "@chetna/privacy": [
+        "packages/privacy/src/index.ts"
+      ],
+      "@chetna/db": [
+        "packages/db/src/index.ts"
+      ],
+      "@chetna/ai": [
+        "packages/ai/src/index.ts"
+      ],
+      "@chetna/content": [
+        "content/index.ts"
+      ]
+    }
+  },
+  "include": [
+    "packages/*/src/**/*.ts",
+    "services/*/src/**/*.ts",
+    "cli/src/**/*.ts",
+    "tests/**/*.ts",
+    "vitest.config.ts",
+    "content/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "**/dist",
+    "**/.next",
+    "packages/db/generated"
+  ]
+}
